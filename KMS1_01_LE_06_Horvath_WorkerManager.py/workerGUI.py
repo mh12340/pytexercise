@@ -3,7 +3,7 @@ from tkinter import messagebox, simpledialog, ttk   #import necessary tkinter co
 from worker_utils import (first_name_check, last_name_check, position_check, birthday_check, phone_number_check,
                           email_check, calculate_days)  #import validation and calculation functions from worker_utils
 
-class WorkerManagerApp:        #define the main class for the worker manager application
+class WorkerManagerApp:             #define the main class for the worker manager application
     def __init__(self, root):
         self.root = root    #assign the root window to an instance variable
         self.root.title("Worker Manager")   #set the title of the window
