@@ -59,7 +59,7 @@ class WorkerManagerApp:             #define the main class for the worker manage
             worker_infos = [tuple(line.strip().split(', ')) for line in lines]
 
         except FileNotFoundError:
-            worker_infos = []   #if file doesnt exist, initialize an empty list
+            worker_infos = []   #if file doesn't exist, initialize an empty list
 
     def add_worker(self):
         #opens a new window to collect worker info
