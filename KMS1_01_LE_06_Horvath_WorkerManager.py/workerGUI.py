@@ -3,7 +3,7 @@ from tkinter import messagebox, simpledialog, ttk   #import necessary tkinter co
 from worker_utils import (first_name_check, last_name_check, position_check, birthday_check, phone_number_check,
                           email_check, calculate_days)  #import validation and calculation functions from worker_utils
 
-class WorkerManagerApp:             #define the main class for the worker manager application
+class WorkerManagerApp:     #define the main class for the worker manager application
     def __init__(self, root):
         self.root = root    #assign the root window to an instance variable
         self.root.title("Worker Manager")   #set the title of the window
@@ -59,7 +59,7 @@ class WorkerManagerApp:             #define the main class for the worker manage
             worker_infos = [tuple(line.strip().split(', ')) for line in lines]
 
         except FileNotFoundError:
-            worker_infos = []   #if file doesn't exist, initialize an empty list
+            worker_infos = []   #if file doesnt exist, initialize an empty list
 
     def add_worker(self):
         #opens a new window to collect worker info
@@ -71,20 +71,28 @@ class WorkerManagerApp:             #define the main class for the worker manage
 
     def show_filtered_list(self):
         try:
-            #attempt to read the filtered worker list from 'txt2.txt'
+            # Attempt to read the filtered worker list from 'txt2.txt'
             with open('txt2.txt', 'r') as file:
                 lines = file.readlines()
 
-            #check if any data was read from the file
+            # Check if any data was read from the file
             if not lines:
                 messagebox.showinfo("Info", "No filtered workers found.")
                 return
 
-            #prepare the list of workers to be displayed
+            # Prepare the list of workers to be displayed
             filtered_workers = [line.strip().split(', ') for line in lines]
 
-            #show the filtered workers in a new Tkinter window
-            self.show_list_gui(filtered_workers)
+            # If a filtered list window is already open, close it to refresh
+            if hasattr(self, 'filtered_list_window') and self.filtered_list_window.winfo_exists():
+                self.filtered_list_window.destroy()
+
+            # Create a new window for the filtered list
+            self.filtered_list_window = tk.Toplevel(self.root)
+            self.filtered_list_window.title("Filtered Worker List")
+
+            # Create and display the filtered list in a treeview using show_list_gui
+            self.show_list_gui(filtered_workers, window=self.filtered_list_window)
 
         except FileNotFoundError:
             messagebox.showerror("Error", "No filtered list found. Please filter first.")
@@ -133,40 +141,56 @@ class WorkerManagerApp:             #define the main class for the worker manage
             return
 
         #open a new window to select a worker to edit
-        select_window = tk.Toplevel(self.root)
-        select_window.title("Select Worker to Edit")
+        self.select_window = tk.Toplevel(self.root)
+        self.select_window.title("Select Worker to Edit")
 
         for i, worker in enumerate(worker_infos):
             #create a button for each worker
-            tk.Button(select_window, text=f"{i + 1}. {worker[0]} - {worker[1]}",
-                      command=lambda i=i: self.open_edit_window(i)).pack(pady=2) #open edit window for selected worker
+            tk.Button(self.select_window, text=f"{i + 1}. {worker[0]} - {worker[1]}",
+                      command=lambda i=i: self.open_edit_window(i)).pack(pady=2)
 
     def open_edit_window(self, worker_index):
         #open a new window to edit worker information
-        worker = worker_infos[worker_index] #get the worker info to edit
+        worker = worker_infos[worker_index]  #get the worker info to edit
         edit_window = tk.Toplevel(self.root)
         edit_window.title(f"Edit {worker[0]}")  #set the title of the edit window
 
         fields = ["Name", "Position", "Address", "Birthday", "Phone", "Email"]  #field names
-        entries = []    #list to store entry fields
+        entries = []  #list to store entry fields
 
         for i, field in enumerate(fields):
-            tk.Label(edit_window, text=f"{field}:").grid(row=i, column=0, padx=5, pady=5)   #label for each field
-            entry = tk.Entry(edit_window)   #create an entry field
+            tk.Label(edit_window, text=f"{field}:").grid(row=i, column=0, padx=5, pady=5)  #label for each field
+            entry = tk.Entry(edit_window)  #create an entry field
             entry.insert(0, worker[i])  #pre-fill entry with current worker info
-            entry.grid(row=i, column=1, padx=5, pady=5) #place entry field in the grid
-            entries.append(entry)   #add the entry to the list
+            entry.grid(row=i, column=1, padx=5, pady=5)  #place entry field in the grid
+            entries.append(entry)  #add the entry to the list
+
 
         def save_changes():
             #get new values from entry fields
             new_values = [entry.get() for entry in entries]
             worker_infos[worker_index] = tuple(new_values)  #update the global worker_infos list
+
             #update the txt1.txt file with the edited information
             with open('txt1.txt', 'w') as file:
                 for worker in worker_infos:
                     file.write(', '.join(worker) + '\n')
+
             messagebox.showinfo("Success", "Worker info updated.")  #show success message
-            edit_window.destroy()   #close the edit window
+
+            #refresh the unfiltered list if it's being displayed
+            if hasattr(self, 'list_window') and self.list_window.winfo_exists():
+                self.show_worker_list()
+
+            #refresh the filtered list if the filtered list window is open
+            if hasattr(self, 'filtered_list_window') and self.filtered_list_window.winfo_exists():
+                self.show_filtered_list()
+
+            #close the edit window after saving changes
+            edit_window.destroy()
+
+            #close the select worker window
+            self.select_window.destroy()
 
         #button to save changes
         tk.Button(edit_window, text="Save Changes", command=save_changes).grid(row=len(fields), column=0, columnspan=2,
@@ -212,35 +236,39 @@ class WorkerManagerApp:             #define the main class for the worker manage
         except Exception as e:
             messagebox.showerror("Error", f"Error filtering and exporting: {str(e)}")   #catch and report any errors
 
-    def show_list_gui(self, workers):
-        #open a new window to display the worker list
+    def show_list_gui(self, workers, window=None):
+        # If no specific window is provided, use the main worker list window
+        if window is None:
+            if hasattr(self, 'list_window') and self.list_window.winfo_exists():
+                self.list_window.destroy()
+            self.list_window = tk.Toplevel(self.root)
+            window = self.list_window
+            window.title("Worker List")  # Set the title of the list window
+
         if not workers:
-            messagebox.showinfo("Info", "No worker information available.") #handle empty list
+            messagebox.showinfo("Info", "No worker information available.")  # Handle empty list
             return
 
-        # create a new top level window to display the worker list
-        list_window = tk.Toplevel(self.root)
-        list_window.title("Worker List")    #set the title of the list window
-
-        # define the column headers for the list
+        # Define the column headers for the list
         headers = ["First & Last Name", "Position", "Address", "Birthday", "Phone Number", "Email",
                    "Days Since Last Birthday", "Days Until Next Birthday"]
         columns = ["name", "position", "address", "birthday", "phone", "email", "days_since_birthday",
                    "days_until_birthday"]
 
-        # create a treeview widget for displaying the list in a table format
-        tree = ttk.Treeview(list_window, columns=columns, show="headings")
+        # Create a Treeview widget for displaying the list in a table format
+        self.tree = ttk.Treeview(window, columns=columns, show="headings")  # Declare self.tree here
         for col, heading in zip(columns, headers):
-            tree.heading(col, text=heading) #set each column heading
-            tree.column(col, width=150) #set column width
+            self.tree.heading(col, text=heading)  # Set each column heading
+            self.tree.column(col, width=150)  # Set column width
 
-        # insert the worker data into the treeview
+        # Insert the worker data into the Treeview
         for worker in workers:
-            # calculate the days since and until the next birthday
+            # Calculate the days since and until the next birthday
             days_since_birthday, days_until_birthday = calculate_days(worker[3])
-            tree.insert("", "end", values=list(worker) + [days_since_birthday, days_until_birthday])    #add worker info
+            self.tree.insert("", "end",
+                             values=list(worker) + [days_since_birthday, days_until_birthday])  # Add worker info
 
-        tree.pack(fill="both", expand=True)  #pack the treeview into the list window
+        self.tree.pack(fill="both", expand=True)  # Pack the Treeview into the list window
 
     def collect_worker_gui(self):
         #create a new window to collect worker info
